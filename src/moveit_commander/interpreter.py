@@ -33,9 +33,10 @@
 # Author: Ioan Sucan
 
 import roslib
-from moveit_commander import MoveGroupCommander, ObjectDetector, ObjectBroadcaster
+from moveit_commander import MoveGroupCommander
 import re
 import time
+import os.path
 
 class MoveGroupInfoLevel:
     FAIL = 1
@@ -57,8 +58,7 @@ class MoveGroupCommandInterpreter:
     def __init__(self):
         self._gdict = {}
         self._group_name = ""
-        self._detector = None
-        self._broadcaster = None
+        self._prev_group_name = ""
 
     def get_active_group(self):
         if len(self._group_name) > 0:
@@ -81,13 +81,20 @@ class MoveGroupCommandInterpreter:
                 return (MoveGroupInfoLevel.INFO, self.get_help() + "\n\nNo groups initialized yet. You must call the 'use' or the 'load' command first.\n")
 
     def execute_generic_command(self, cmd):
+        if os.path.isfile("cmd/" + cmd):
+            cmd = "load cmd/" + cmd
         if cmd.startswith("use"):
             if cmd == "use":
                 return (MoveGroupInfoLevel.INFO, "\n".join(self.get_loaded_groups()))
             clist = cmd.split()
             if len(clist) == 2:
                 if clist[0] == "use":
+                    if clist[1] == "previous":
+                        clist[1] = self._prev_group_name
+                        if len(clist[1]) == 0:
+                            return (MoveGroupInfoLevel.DEBUG, "OK")
                     if self._gdict.has_key(clist[1]):
+                        self._prev_group_name = self._group_name
                         self._group_name = clist[1]
                         return (MoveGroupInfoLevel.DEBUG, "OK")
                     else:
@@ -105,10 +112,12 @@ class MoveGroupCommandInterpreter:
                 return (MoveGroupInfoLevel.WARN, "Unable to parse load command")
             if len(clist) == 2:
                 filename = clist[1]
+                if not os.path.isfile(filename):
+                    filename = "cmd/" + filename
             try:
                 f = open(filename, 'r')
                 for line in f:
-                    self.execute(line)
+                    self.execute(line.rstrip())
                 return (MoveGroupInfoLevel.DEBUG, "OK")
             except:
                 return (MoveGroupInfoLevel.WARN, "Unable to load " + filename)
@@ -129,12 +138,6 @@ class MoveGroupCommandInterpreter:
                 return (MoveGroupInfoLevel.DEBUG, "OK")
             except:
                 return (MoveGroupInfoLevel.WARN, "Unable to save " + filename)
-        elif cmd.startswith("detect"):
-            clist = cmd.split()
-            if len(clist) >= 2:
-                return self.command_detect(float(clist[1]))
-            else:
-                return self.command_detect(0.5)  
         else:
             return None
 
@@ -235,6 +238,16 @@ class MoveGroupCommandInterpreter:
                             return (MoveGroupInfoLevel.FAIL, "Failed while moving to " + clist[1])
                     except:
                         return (MoveGroupInfoLevel.WARN, clist[1] + " is unknown")
+            elif clist[0] == "pick":
+                if g.pick(clist[1]):
+                    return (MoveGroupInfoLevel.SUCCESS, "Picked object " + clist[1])
+                else:
+                    return (MoveGroupInfoLevel.FAIL, "Failed while trying to pick object " + clist[1])
+            elif clist[0] == "place":
+                if g.place(clist[1]):
+                    return (MoveGroupInfoLevel.SUCCESS, "Placed object " + clist[1])
+                else:
+                    return (MoveGroupInfoLevel.FAIL, "Failed while trying to place object " + clist[1])
             elif clist[0] == "record" or clist[0] == "rec":
                 g.remember_joint_values(clist[1])
                 return (MoveGroupInfoLevel.SUCCESS, "Remembered current joint values under the name " + clist[1])
@@ -330,16 +343,6 @@ class MoveGroupCommandInterpreter:
         else:
             return (MoveGroupInfoLevel.WARN, "No known end effector. Cannot move " + direction_name)
 
-    def command_detect(self, confidence):
-        if self._broadcaster is None:
-            self._broadcaster = ObjectBroadcaster()
-        if self._detector is None:
-            self._detector = ObjectDetector(self._broadcaster.broadcast)
-            self._detector.start_action_client()
-        self._broadcaster.set_minimum_confidence(confidence)
-        self._detector.trigger_detection()
-        return (MoveGroupInfoLevel.SUCCESS, "OK")
-
     def resolve_command_alias(self, cmd):
         if cmd == "which":
             cmd = "id"
@@ -394,9 +397,10 @@ class MoveGroupCommandInterpreter:
                 'use':groups,
                 'load':[],
                 'save':[],
+                'pick':[],
+                'place':[],
                 'allow':['replanning', 'looking'],
                 'constrain':known_constr,
-                'detect':[],
                 'vars':[],
                 'joints':[],
                 'tolerance':[],
