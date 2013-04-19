@@ -258,6 +258,9 @@ class MoveGroupCommander:
     def set_planning_time(self, seconds):
         self._g.set_planning_time(seconds)
 
+    def set_planner_id(self, planner_id):
+        self._g.set_planner_id(planner_id)
+
     def set_workspace(self, ws):
         """ Set the workspace for the robot as either [], [minX, minY, maxX, maxY] or [minX, minY, minZ, maxX, maxY, maxZ] """
         if len(ws) == 0:
@@ -338,3 +341,10 @@ class MoveGroupCommander:
     def place(self, object_name):
         """Place the named object"""
         return self._g.place(object_name)
+
+
+def roscpp_initialize(args):
+    _moveit_move_group_interface.roscpp_init("move_group_commander_wrappers", args)
+
+def roscpp_shutdown():
+    _moveit_move_group_interface.roscpp_shutdown()
