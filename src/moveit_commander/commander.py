@@ -34,7 +34,7 @@
 
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from moveit_msgs.msg import RobotTrajectory, MultiDOFJointTrajectory, MultiDOFJointTrajectoryPoint
-from geometry_msgs.msg import Pose, PoseStamped
+from geometry_msgs.msg import Pose, PoseStamped, Transform, TransformStamped
 from sensor_msgs.msg import JointState
 import rospy
 import tf
@@ -81,6 +81,12 @@ class MoveGroupCommander:
         """ Set the reference frame to assume for poses of end-effectors """
         self._g.set_pose_reference_frame(reference_frame)
 
+    def get_robot_root_link(self):
+        return self._g.get_robot_root_link()
+    
+    def get_planning_frame(self):
+        return self._g.get_planning_frame()
+
     def get_current_joint_values(self):
         return self._g.get_current_joint_values()
 
@@ -95,7 +101,18 @@ class MoveGroupCommander:
         pose.append(pose_msg.orientation.w)
         return pose
 
-    def __list_to_pose(self, pose_list):
+    def __transform_to_list(self, trf_msg):
+        trf = []
+        trf.append(trf_msg.translation.x)
+        trf.append(trf_msg.translation.y)
+        trf.append(trf_msg.translation.z) 
+        trf.append(trf_msg.rotation.x)
+        trf.append(trf_msg.rotation.y)
+        trf.append(trf_msg.rotation.z)
+        trf.append(trf_msg.rotation.w)
+        return trf
+
+    def __list_to_pose_stamped(self, pose_list):
         pose_msg = PoseStamped()
         if len(pose_list) == 7:
             pose_msg.pose.position.x = pose_list[0]
@@ -120,18 +137,35 @@ class MoveGroupCommander:
         pose_msg.header.stamp = rospy.Time.now()
         return pose_msg
 
+    def __list_to_transform(self, trf_list):
+        trf_msg = Transform()
+        trf_msg.translation.x = trf_list[0]
+        trf_msg.translation.y = trf_list[1]
+        trf_msg.translation.z = trf_list[2]
+        trf_msg.rotation.x = trf_list[3]
+        trf_msg.rotation.y = trf_list[4]
+        trf_msg.rotation.z = trf_list[5]
+        trf_msg.rotation.w = trf_list[6]
+        return trf_msg
+
     def get_current_pose(self, end_effector_link = ""):
         if len(end_effector_link) > 0 or self.has_end_effector_link():
-            return self.__list_to_pose(self._g.get_current_pose(end_effector_link))
+            return self.__list_to_pose_stamped(self._g.get_current_pose(end_effector_link))
         else:
             raise "There is no end effector to get the pose of"
-        
+
+    def get_current_rpy(self, end_effector_link = ""):
+        if len(end_effector_link) > 0 or self.has_end_effector_link():
+            return self._g.get_current_rpy(end_effector_link)
+        else:
+            raise "There is no end effector to get the rpy of"
+
     def get_random_joint_values(self):
         return self._g.get_random_joint_values()
 
     def get_random_pose(self, end_effector_link = ""):
         if len(end_effector_link) > 0 or self.has_end_effector_link():
-            return self.__list_to_pose(self._g.get_random_pose(end_effector_link))
+            return self.__list_to_pose_stamped(self._g.get_random_pose(end_effector_link))
         else:
             raise "There is no end effector to get the pose of"
 
@@ -142,15 +176,21 @@ class MoveGroupCommander:
         else:
             self._g.set_joint_value_target(name, value)
 
-    def set_orientation_target(self, xyz, end_effector_link = ""):
+    def set_rpy_target(self, rpy, end_effector_link = ""):
         if len(end_effector_link) > 0 or self.has_end_effector_link():
-            if len(xyz) == 3:
-                self._g.set_orientation_target(xyz[0], xyz[1], xyz[2], end_effector_link)
+            if len(rpy) == 3:
+                self._g.set_rpy_target(rpy[0], rpy[1], rpy[2], end_effector_link)
             else:
-                if len(xyz) == 4:
-                    self._g.set_orientation_target(xyz[0], xyz[1], xyz[2], xyz[3], end_effector_link)
-                else:
-                    raise "Expected either [roll, pitch, yaw] or [qx, qy, qz, qw]"
+                raise "Expected [roll, pitch, yaw]"
+        else:
+            raise "There is no end effector to set the pose for"
+
+    def set_orientation_target(self, q, end_effector_link = ""):
+        if len(end_effector_link) > 0 or self.has_end_effector_link():
+            if len(q) == 4:
+                self._g.set_orientation_target(q[0], q[1], q[2], q[3], end_effector_link)
+            else:
+                raise "Expected [qx, qy, qz, qw]"
         else:
             raise "There is no end effector to set the pose for"
 
@@ -161,10 +201,15 @@ class MoveGroupCommander:
             raise "There is no end effector to set the pose for"
 
     def set_pose_target(self, pose, end_effector_link = ""):
-        """ Set the pose of the end-effector, if one is available. The expected input is a list of 6 floats:"""
+        """ Set the pose of the end-effector, if one is available. The expected input is a Pose message, a PoseStamped message or a list of 6 floats:"""
         """ [x, y, z, rot_x, rot_y, rot_z] or a list of 7 floats [x, y, z, qx, qy, qz, qw] """
         if len(end_effector_link) > 0 or self.has_end_effector_link():
-            if type(pose) is Pose:
+            if type(pose) is PoseStamped:
+                old = self.get_pose_reference_frame()
+                self.set_pose_reference_frame(pose.header.frame_id)
+                self._g.set_pose_target(self.__pose_to_list(pose.pose), end_effector_link)
+                self.set_pose_reference_frame(old)
+            elif type(pose) is Pose:
                 self._g.set_pose_target(self.__pose_to_list(pose), end_effector_link)
             else:
                 self._g.set_pose_target(pose, end_effector_link)
@@ -172,15 +217,9 @@ class MoveGroupCommander:
             raise "There is no end effector to set the pose for"
 
     def set_pose_targets(self, poses, end_effector_link = ""):
-        """ Set the pose of the end-effector, if one is available. The expected input is a list of poses. Each pose can be 6 floats: [x, y, z, rot_x, rot_y, rot_z] or 7 floats [x, y, z, qx, qy, qz, qw] """
+        """ Set the pose of the end-effector, if one is available. The expected input is a list of poses. Each pose can be a Pose message, a list of 6 floats: [x, y, z, rot_x, rot_y, rot_z] or a list of 7 floats [x, y, z, qx, qy, qz, qw] """
         if len(end_effector_link) > 0 or self.has_end_effector_link():
             self._g.set_pose_targets([self.__pose_to_list(p) if type(p) is Pose else p for p in poses], end_effector_link)
-        else:
-            raise "There is no end effector to set poses for"
-
-    def follow_pose_sequence(self, poses, end_effector_link = ""):  
-        if len(end_effector_link) > 0 or self.has_end_effector_link():
-            self._g.follow_constraints([self.__pose_to_list(p) if type(p) is Pose else p for p in poses], end_effector_link)
         else:
             raise "There is no end effector to set poses for"
 
@@ -258,6 +297,9 @@ class MoveGroupCommander:
     def set_planning_time(self, seconds):
         self._g.set_planning_time(seconds)
 
+    def get_planning_time(self):
+        return self._g.get_planning_time()
+
     def set_planner_id(self, planner_id):
         self._g.set_planner_id(planner_id)
 
@@ -296,6 +338,30 @@ class MoveGroupCommander:
         else:
             return self._g.async_move()
 
+    def __dict_to_trajectory(self, plan):
+        plan_msg = RobotTrajectory()
+        joint_traj = JointTrajectory()
+        joint_traj.header.frame_id = plan["joint_trajectory"]["frame_id"]
+        joint_traj.joint_names = plan["joint_trajectory"]["joint_names"]
+        for point in plan["joint_trajectory"]["points"]:
+            joint_traj.points.append(JointTrajectoryPoint(
+                positions = point["positions"],
+                velocities = point["velocities"],
+                accelerations = point["accelerations"],
+                time_from_start = point["time_from_start"]))
+        multi_dof_joint_traj = MultiDOFJointTrajectory()
+        multi_dof_joint_traj.header.frame_id = plan["multi_dof_joint_trajectory"]["frame_id"]
+        multi_dof_joint_traj.joint_names = plan["multi_dof_joint_trajectory"]["joint_names"]
+        for point in plan["multi_dof_joint_trajectory"]["points"]:
+             multi_dof_joint_traj_point = MultiDOFJointTrajectoryPoint()
+             for t in point["transforms"]:
+                 multi_dof_joint_traj_point.transforms.append(self.__list_to_transform(t))
+             multi_dof_joint_traj_point.time_from_start = point["time_from_start"]
+             multi_dof_joint_traj.points.append(multi_dof_joint_traj_point)
+        plan_msg.joint_trajectory = joint_traj
+        plan_msg.multi_dof_joint_trajectory = multi_dof_joint_traj
+        return plan_msg    
+
     def plan(self, joints = None):
         """ Return a motion plan (a RobotTrajectory) to the set goal state (or specified by the joints argument) """
         if type(joints) is JointState:
@@ -309,30 +375,45 @@ class MoveGroupCommander:
                 self.set_joint_value_target(self.get_remembered_joint_values()[joints])
             except:
                 self.set_joint_value_target(joints)
-        plan = self._g.get_plan()
-        plan_msg = RobotTrajectory()
-        joint_traj = JointTrajectory()
-        joint_traj.joint_names = plan["joint_trajectory"]["joint_names"]
-        for point in plan["joint_trajectory"]["points"]:
-            joint_traj.points.append(JointTrajectoryPoint(
-                positions = point["positions"],
-                velocities = point["velocities"],
-                accelerations = point["accelerations"]))
-        multi_dof_joint_traj = MultiDOFJointTrajectory()
-        multi_dof_joint_traj.joint_names = plan["multi_dof_joint_trajectory"]["joint_names"]
-        multi_dof_joint_traj.frame_ids = plan["multi_dof_joint_trajectory"]["frame_ids"]
-        multi_dof_joint_traj.child_frame_ids = plan["multi_dof_joint_trajectory"]["child_frame_ids"]
-        for point in plan["multi_dof_joint_trajectory"]["points"]:
-             multi_dof_joint_traj_point = MultiDOFJointTrajectoryPoint()
-             for t in point["transforms"]:
-                 multi_dof_joint_traj_point.poses.append(Transform(
-                         translation = Vector(x = t["translation"]["x"], y = t["translation"]["y"], z = t["translation"]["z"]),
-                         rotation = Quaternion(x = t["rotation"]["x"], y = t["rotation"]["y"],
-                                               z = t["rotation"]["z"], w = t["rotation"]["w"])))
-             multi_dof_joint_traj.points.append(multi_dof_joint_traj_point)
-        plan_msg.joint_trajectory = joint_traj
-        plan_msg.multi_dof_joint_trajectory = multi_dof_joint_traj
-        return plan_msg    
+        plan = self._g.compute_plan()
+        return self.__dict_to_trajectory(plan)
+
+    def __trajectory_to_dict(self, plan_msg):
+        plan = {}
+        plan["joint_trajectory"] = {}
+        plan["joint_trajectory"]["frame_id"] = plan_msg.joint_trajectory.header.frame_id
+        plan["joint_trajectory"]["joint_names"] = plan_msg.joint_trajectory.joint_names
+        joint_trajectory_points = []
+        for p in plan_msg.joint_trajectory.points:
+            point = {}
+            point["positions"] = p.positions
+            point["velocities"] = p.velocities
+            point["accelerations"] = p.accelerations
+            point["time_from_start"] = p.time_from_start
+            joint_trajectory_points.append(point)
+        plan["joint_trajectory"]["points"] = joint_trajectory_points
+
+        plan["multi_dof_joint_trajectory"] = {}
+        plan["multi_dof_joint_trajectory"]["frame_id"] = plan_msg.multi_dof_joint_trajectory.header.frame_id
+        plan["multi_dof_joint_trajectory"]["joint_names"] = plan_msg.multi_dof_joint_trajectory.joint_names
+        multi_dof_joint_trajectory_points = []
+        for p in plan_msg.multi_dof_joint_trajectory.points:
+            point = {}
+            point["transforms"] = []
+            for t in p.transforms:
+                point["transforms"].append(self.__transform_to_list(t))
+            point["time_from_start"] = p.time_from_start
+            multi_dof_joint_trajectory_points.append(point)
+        plan["multi_dof_joint_trajectory"]["points"] = multi_dof_joint_trajectory_points
+        return plan
+
+    def compute_cartesian_path(self, waypoints, eef_step, jump_threshold):
+        (dpath, fraction) = self._g.compute_cartesian_path([self.__pose_to_list(p) for p in waypoints], eef_step, jump_threshold)
+        return (self.__dict_to_trajectory(dpath), fraction)
+
+    def execute(self, plan_msg):
+        """Execute a previously planned path"""
+        return self._g.execute(self.__trajectory_to_dict(plan_msg))
 
     def pick(self, object_name):
         """Pick the named object"""
