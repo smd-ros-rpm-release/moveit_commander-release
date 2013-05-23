@@ -46,7 +46,7 @@ class MoveGroupInfoLevel:
     INFO = 4
     DEBUG = 5
 
-class MoveGroupCommandInterpreter:
+class MoveGroupCommandInterpreter(object):
     """
     Interpreter for simple commands
     """
@@ -240,7 +240,7 @@ class MoveGroupCommandInterpreter:
             return (MoveGroupInfoLevel.SUCCESS, "Cleared path constraints")
 
         if cmd == "tol" or cmd == "tolerance":
-            return (MoveGroupInfoLevel.INFO, str(g.get_goal_tolerance()))
+            return (MoveGroupInfoLevel.INFO, "Joint = %0.6g, Position = %0.6g, Orientation = %0.6g" % g.get_goal_tolerance())
 
         if cmd == "time":
             return (MoveGroupInfoLevel.INFO, str(g.get_planning_time()))
