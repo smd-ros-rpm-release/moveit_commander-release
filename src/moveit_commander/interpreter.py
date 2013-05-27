@@ -33,7 +33,7 @@
 # Author: Ioan Sucan
 
 import rospy
-from moveit_commander import MoveGroupCommander, PlanningSceneInterface
+from moveit_commander import RobotCommander, MoveGroupCommander, PlanningSceneInterface, MoveItCommanderException
 from geometry_msgs.msg import PoseStamped
 import re
 import time
@@ -61,6 +61,7 @@ class MoveGroupCommandInterpreter(object):
         self._group_name = ""
         self._prev_group_name = ""
         self._planning_scene_interface = PlanningSceneInterface()
+        self._robot = RobotCommander()
         self._last_plan = None
         self._db_host = None
         self._db_port = 33829
@@ -111,6 +112,8 @@ class MoveGroupCommandInterpreter(object):
                             self._gdict[clist[1]] = mg
                             self._group_name = clist[1]
                             return (MoveGroupInfoLevel.DEBUG, "OK")
+                        except MoveItCommanderException as e:
+                            return (MoveGroupInfoLevel.FAIL, "Initializing " + clist[1] + ": " + str(e))
                         except:
                             return (MoveGroupInfoLevel.FAIL, "Unable to initialize " + clist[1])
         elif cmdlow.startswith("trace"):
@@ -149,6 +152,11 @@ class MoveGroupCommandInterpreter(object):
                       self.execute(line.rstrip())
                     line_content = ""
                 return (MoveGroupInfoLevel.DEBUG, "OK")
+            except MoveItCommanderException as e:  
+                if line_num > 0:
+                    return (MoveGroupInfoLevel.WARN, "Error at %s:%d:  %s\n%s" % (filename, line_num, line_content, str(e)))
+                else:
+                    return (MoveGroupInfoLevel.WARN, "Processing " + filename + ": " + str(e))
             except:
                 if line_num > 0:
                     return (MoveGroupInfoLevel.WARN, "Error at %s:%d:  %s" % (filename, line_num, line_content))
@@ -317,6 +325,8 @@ class MoveGroupCommandInterpreter(object):
                             return (MoveGroupInfoLevel.SUCCESS, "Moved to " + clist[1])
                         else:
                             return (MoveGroupInfoLevel.FAIL, "Failed while moving to " + clist[1])
+                    except MoveItCommanderException as e:
+                        return (MoveGroupInfoLevel.WARN, "Going to " + clist[1] + ": " + str(e))
                     except:
                         return (MoveGroupInfoLevel.WARN, clist[1] + " is unknown")
             if clist[0] == "plan":
@@ -330,6 +340,8 @@ class MoveGroupCommandInterpreter(object):
                     try:
                         g.set_named_target(clist[1])
                         self._last_plan = g.plan()
+                    except MoveItCommanderException as e:
+                        return (MoveGroupInfoLevel.WARN, "Planning to " + clist[1] + ": " + str(e))
                     except:
                         return (MoveGroupInfoLevel.WARN, clist[1] + " is unknown")
                 if self._last_plan != None:
@@ -416,6 +428,8 @@ class MoveGroupCommandInterpreter(object):
                     offset = float(clist[2])
                     (axis, factor) = self.GO_DIRS[clist[1]]
                     return self.command_go_offset(g, offset, factor, axis, clist[1])
+                except MoveItCommanderException as e:
+                    return (MoveGroupInfoLevel.WARN, "Going " + clist[1] + ": " + str(e))
                 except:
                     return (MoveGroupInfoLevel.WARN, "Unable to parse distance '" + clist[2] + "'")
             elif clist[0] == "allow" and (clist[1] == "look" or clist[1] == "looking"):
@@ -447,6 +461,8 @@ class MoveGroupCommandInterpreter(object):
                         return (MoveGroupInfoLevel.SUCCESS, "Rotation complete")
                     else:
                         return (MoveGroupInfoLevel.FAIL, "Failed while rotating to " + " ".join(clist[1:]))
+                except MoveItCommanderException as e:
+                    return (MoveGroupInfoLevel.WARN, str(e))
                 except:
                     return (MoveGroupInfoLevel.WARN, "Unable to parse X-Y-Z rotation  values '" + " ".join(clist[1:]) + "'")
 
@@ -474,6 +490,8 @@ class MoveGroupCommandInterpreter(object):
                     return (MoveGroupInfoLevel.SUCCESS, "Moved " + direction_name + " by " + str(offset) + " m")
                 else:
                     return (MoveGroupInfoLevel.FAIL, "Failed while moving " + direction_name)
+            except MoveItCommanderException as e:
+                return (MoveGroupInfoLevel.WARN, str(e))
             except:
                 return (MoveGroupInfoLevel.WARN, "Unable to process pose update")
         else:
@@ -529,7 +547,7 @@ class MoveGroupCommandInterpreter(object):
         if self.get_active_group() != None:
             known_vars = self.get_active_group().get_remembered_joint_values().keys()
             known_constr = self.get_active_group().get_known_constraints()
-        groups = self.get_loaded_groups()
+        groups = self._robot.get_group_names()
         return {'go':['up', 'down', 'left', 'right', 'backward', 'forward', 'random'] + known_vars,
                 'help':[],
                 'record':known_vars,
