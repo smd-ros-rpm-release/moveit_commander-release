@@ -1,3 +1,22 @@
+## moveit_commander - 0.5.3-0
+
+User `schitta@schitta-pc` released the packages in the `moveit_commander` repository by running `/usr/bin/bloom-release moveit_commander --track hydro --rosdistro hydro` on `Sat, 04 Jan 2014 01:50:07 -0000`
+
+The `moveit_commander` package was released.
+
+Version of package(s) in repository `moveit_commander`:
+- rosdistro version: `0.5.2-0`
+- old version: `0.5.2-0`
+- new version: `0.5.3-0`
+
+Versions of tools used:
+- bloom version: `0.4.4`
+- catkin_pkg version: `0.1.24`
+- rosdep version: `0.10.24`
+- rosdistro version: `0.2.17`
+- vcstools version: `0.1.32`
+
+
 ## moveit_commander - 0.5.2-0
 
 User `isucan@i7` released the packages in the `moveit_commander` repository by running `/usr/local/bin/bloom-release -r hydro -t hydro moveit_commander` on `Mon, 23 Sep 2013 11:54:18 -0000`
