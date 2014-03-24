@@ -1,3 +1,22 @@
+## moveit_commander (indigo) - 0.5.6-0
+
+User `isucan@isucan-glaptop0` released the packages in the `moveit_commander` repository into the `indigo` distro by running `/usr/bin/bloom-release -r indigo -t indigo moveit_commander --new-track` on `Mon, 24 Mar 2014 18:14:48 -0000`
+
+The `moveit_commander` package was released.
+
+Version of package(s) in repository `moveit_commander`:
+- rosdistro version: `null`
+- old version: `null`
+- new version: `0.5.6-0`
+
+Versions of tools used:
+- bloom version: `0.5.2`
+- catkin_pkg version: `0.1.27`
+- rosdep version: `0.10.25`
+- rosdistro version: `0.3.4`
+- vcstools version: `0.1.33`
+
+
 ## moveit_commander (hydro) - 0.5.5-0
 
 User `schitta@schitta-pc` released the packages in the `moveit_commander` repository into the `hydro` distro by running `/usr/bin/bloom-release moveit_commander --track hydro --rosdistro hydro` on `Thu, 27 Feb 2014 22:57:11 -0000`
