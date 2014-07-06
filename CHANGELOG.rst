@@ -2,6 +2,19 @@
 Changelog for package moveit_commander
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.5.7 (2014-07-05)
+------------------
+* Merge pull request `#21 <https://github.com/ros-planning/moveit_commander/issues/21>` from pirobot/hydro-devel
+  Added set_support_surface_name function to move_group.py
+* Added set_support_surface_name function to move_group.py
+* Contributors: Patrick Goebel, Sachin Chitta
+
+0.5.6 (2014-03-24)
+------------------
+* Added the calls necessary to manage path constraints. 
+* fix joint and link acces on __getattr__  when trying to acces a joint and its paramaters throught
+* Contributors: Acorn, Emili Boronat, Sachin Chitta
+
 0.5.5 (2014-02-27)
 ------------------
 * adding get for active joints
