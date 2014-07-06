@@ -1,0 +1,12 @@
+Source: ros-hydro-moveit-commander
+Section: misc
+Priority: extra
+Maintainer: Ioan Sucan <isucan@willowgarage.com>
+Build-Depends: debhelper (>= 9.0.0), python-catkin-pkg, python-dev, python-pyassimp, ros-hydro-actionlib, ros-hydro-catkin, ros-hydro-eigen-conversions, ros-hydro-moveit-ros-manipulation, ros-hydro-moveit-ros-planning, ros-hydro-moveit-ros-planning-interface, ros-hydro-moveit-ros-warehouse, ros-hydro-rosconsole, ros-hydro-roscpp, ros-hydro-rospy, ros-hydro-tf
+Homepage: http://moveit.ros.org
+Standards-Version: 3.9.2
+
+Package: ros-hydro-moveit-commander
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, python-dev, python-pyassimp, ros-hydro-actionlib, ros-hydro-eigen-conversions, ros-hydro-moveit-ros-manipulation, ros-hydro-moveit-ros-planning, ros-hydro-moveit-ros-planning-interface, ros-hydro-moveit-ros-warehouse, ros-hydro-rosconsole, ros-hydro-roscpp, ros-hydro-rospy, ros-hydro-tf
+Description: Python interfaces to MoveIt
